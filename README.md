@@ -1,4 +1,4 @@
-# Workday Health - Jira Worklog Viewer
+# Jira Worklog Viewer
 
 A Chrome extension that provides a beautiful calendar view of your Jira worklogs, showing daily work hours as color-coded bubbles.
 
@@ -19,7 +19,7 @@ A Chrome extension that provides a beautiful calendar view of your Jira worklogs
 ### 1. Clone the Repository
 ```bash
 git clone <repository-url>
-cd Workday-Project
+cd Jira-Worklog-Viewer
 ```
 
 ### 2. Configure Your Jira Instance
