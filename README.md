@@ -62,63 +62,6 @@ const CONFIG = {
 4. Use the **Full Month** button to expand to full month view
 5. Use the **< >** buttons to navigate months
 
-## Project Structure
-
-```
-.
-├── manifest.json           # Extension configuration
-├── background.js           # Service worker & API calls
-├── config.js              # Local config (in .gitignore)
-├── config.example.js      # Config template for GitHub
-├── popup/
-│   ├── popup.html         # UI markup & styles
-│   └── popup.js           # Calendar logic & rendering
-└── README.md              # This file
-```
-
-## Security Note
-
-**Never commit `config.js` to version control!** It contains sensitive information about your Jira instance. The file is in `.gitignore` by default.
-
-Always use `config.example.js` as a template for new setup.
-
-## API Integration
-
-The extension uses the Jira REST API v3:
-- `/rest/api/3/myself` - Get current user profile
-- `/rest/api/3/search/jql` - Search for issues with worklogs
-- `/rest/api/3/issue/{key}/worklog` - Fetch worklog details
-
-Authentication is handled via browser cookies (`tenant.session.token`).
-
-## Performance
-
-- **Caching**: 5-minute TTL reduces API calls
-- **Lazy Loading**: Background loading doesn't block user interactions
-- **Request Prioritization**: User-selected dates load immediately
-- **Parallel Fetching**: Worklogs for all issues fetched in parallel
-
-## Troubleshooting
-
-### Extension not loading?
-- Verify `config.js` exists with correct `JIRA_DOMAIN`
-- Check Chrome DevTools console for errors (Right-click popup > Inspect)
-
-### No worklogs showing?
-- Ensure you're logged into Jira in this Chrome profile
-- Check that you have worklogs for the selected dates
-- Open DevTools console to see debug logs
-
-### Worklogs are slow to load?
-- Cache expires after 5 minutes - first load may take longer
-- Parallel requests are limited by browser - wait for current requests to finish
-
-## Development
-
-- **Background Logic**: See `background.js` for API integration
-- **UI Logic**: See `popup/popup.js` for calendar rendering
-- **Styling**: CSS is in `popup/popup.html`
-
 ## Author
 
 Created by **Mokshak Ketan Dagli**  
