@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * { box-sizing: border-box; }
+    
+    body {
+      width: 700px;
+      min-height: 450px;
+      max-height: 800px;
+      padding: 0;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      overflow: hidden;
+      color: #2d3748;
+    }
+    
+    .left-panel {
+      width: 360px;
+      padding: 20px;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 2px 0 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .right-panel {
+      flex: 1;
+      padding: 20px;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+    }
+    
+    .right-panel.visible {
+      display: flex;
+    }
+    
+    /* Calendar Header */
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      gap: 10px;
+    }
+    
+    .calendar-header h3 {
+      margin: 0;
+      font-size: 18px;
+      color: #2d3748;
+      font-weight: 800;
+      flex: 1;
+      text-align: center;
+      letter-spacing: -0.5px;
+    }
+    
+    .calendar-nav button {
+      width: 36px !important;
+      height: 36px !important;
+      padding: 0 !important;
+      font-size: 16px !important;
+      border: none !important;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+      cursor: pointer;
+      border-radius: 8px !important;
+      color: white !important;
+      font-weight: 800 !important;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .calendar-nav button:hover {
+      transform: translateY(-3px) scale(1.08);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.45);
+    }
+    
+    .calendar-nav button:active {
+      transform: translateY(-1px);
+    }
+    
+    /* Force month nav button styles */
+    #prevMonth, #nextMonth {
+      width: 36px !important;
+      height: 36px !important;
+      padding: 0 !important;
+      font-size: 16px !important;
+      border: none !important;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+      cursor: pointer !important;
+      border-radius: 8px !important;
+      color: white !important;
+      font-weight: 800 !important;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+    
+    #prevMonth:hover, #nextMonth:hover {
+      transform: translateY(-3px) scale(1.08) !important;
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.45) !important;
+    }
+    
+    #prevMonth:active, #nextMonth:active {
+      transform: translateY(-1px) !important;
+    }
+    
+    #toggleView {
+      width: 100%;
+      margin-top: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    #toggleView:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* Background Loading Status */
+    .background-status {
+      font-size: 12px;
+      color: #667eea;
+      text-align: center;
+      margin-top: 4px;
+      min-height: 12px;
+      display: none;
+      font-weight: 600;
+    }
+    
+    .background-status.loading {
+      display: block;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    /* Calendar Status */
+    .calendar-status {
+      font-size: 12px;
+      color: #718096;
+      text-align: center;
+      margin-bottom: 10px;
+      min-height: 18px;
+    }
+    
+    /* Calendar Grid */
+    .calendar-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .weekday {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #667eea;
+      padding: 6px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    
+    /* Calendar Date Bubble */
+    .date-bubble {
+      position: relative;
+      aspect-ratio: 1;
+      cursor: pointer;
+      border-radius: 12px;
+      border: 2px solid transparent;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      overflow: hidden;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    
+    .date-bubble.other-month {
+      opacity: 0.2;
+      cursor: default;
+    }
+    
+    .date-bubble-inner {
+      position: absolute;
+      inset: 0;
+      border-radius: 10px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .date-bubble.selected {
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15), 0 4px 12px rgba(102, 126, 234, 0.3);
+      transform: scale(1.08);
+    }
+    
+    .date-bubble:not(.other-month):hover {
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+    }
+    
+    .date-bubble-text {
+      position: relative;
+      z-index: 2;
+      color: #2d3748;
+      font-weight: 800;
+    }
+    
+    .date-bubble.empty .date-bubble-inner {
+      background: #e2e8f0;
+      opacity: 1;
+    }
+    
+    .date-bubble.critical .date-bubble-inner {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+      opacity: var(--fill);
+    }
+    .date-bubble.critical .date-bubble-text { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+    
+    .date-bubble.warning .date-bubble-inner {
+      background: linear-gradient(135deg, #ffa94d 0%, #ff9730 100%);
+      opacity: var(--fill);
+    }
+    .date-bubble.warning .date-bubble-text { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+    
+    .date-bubble.good .date-bubble-inner {
+      background: linear-gradient(135deg, #51cf66 0%, #37b24d 100%);
+      opacity: var(--fill);
+    }
+    .date-bubble.good .date-bubble-text { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+    
+    .date-bubble.excellent .date-bubble-inner {
+      background: linear-gradient(135deg, #2f9e44 0%, #1b7a2d 100%);
+      opacity: 1;
+    }
+    .date-bubble.excellent .date-bubble-text { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+    
+    .date-bubble.loading {
+      opacity: 0.7;
+      cursor: wait;
+      animation: shimmer 1.5s infinite;
+    }
+    
+    @keyframes shimmer {
+      0%, 100% { background: #f0f4f8; }
+      50% { background: #e2e8f0; }
+    }
+    
+    /* Logs Container */
+    #logsContainer {
+      background: white;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    
+    .logs-header {
+      font-size: 14px;
+      font-weight: 800;
+      color: #2d3748;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #667eea;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    
+    th, td {
+      text-align: left;
+      padding: 6px 0;
+    }
+    
+    th {
+      color: #667eea;
+      font-weight: 800;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    tbody td {
+      color: #2d3748;
+    }
+    
+    tbody tr {
+      border-bottom: 1px solid #f0f0f0;
+      transition: background 0.2s ease;
+    }
+    
+    tbody tr:hover {
+      background: linear-gradient(90deg, rgba(102, 126, 234, 0.05) 0%, transparent 100%);
+    }
+    
+    .total-row {
+      font-size: 14px;
+      font-weight: 800;
+      color: #667eea;
+      margin: 10px 0;
+      padding: 12px 0;
+      border-top: 2px solid #667eea;
+    }
+    
+    #copyBtn {
+      width: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    #copyBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(102, 126, 234, 0.4);
+    }
+    
+    #copyBtn:active {
+      transform: translateY(0);
+    }
+    
+    /* Footer */
+    .footer {
+      padding: 16px 12px;
+      margin-top: auto;
+      text-align: center;
+      font-size: 11px;
+      color: #718096;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+      border-top: 2px solid transparent;
+      border-image: linear-gradient(90deg, #667eea 0%, #764ba2 100%) 1;
+      border-image-slice: 1;
+    }
+    
+    .footer p {
+      margin: 4px 0;
+      line-height: 1.6;
+    }
+    
+    .footer strong {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 0.3px;
+    }
+    
+    .footer .developer {
+      color: #2d3748;
+      font-weight: 600;
+      font-size: 11px;
+    }
+    
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 700;
+      transition: all 0.2s ease;
+      display: inline-block;
+    }
+    
+    .footer a:hover {
+      color: #764ba2;
+      transform: translateY(-1px);
+    }
+    
+    #status {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="left-panel">
+    <div class="calendar-header">
+      <button class="calendar-nav" id="prevMonth" title="Previous month"><</button>
+      <h3 id="monthLabel">January 2026</h3>
+      <button class="calendar-nav" id="nextMonth" title="Next month">></button>
+    </div>
+    
+    <button id="toggleView" title="Toggle between week and full month view">Full Month</button>
+    
+    <div class="calendar-status" id="calendarStatus"></div>
+    <div class="background-status" id="backgroundStatus">Loading in background...</div>
+    
+    <div class="calendar-weekdays">
+      <div class="weekday">Sun</div>
+      <div class="weekday">Mon</div>
+      <div class="weekday">Tue</div>
+      <div class="weekday">Wed</div>
+      <div class="weekday">Thu</div>
+      <div class="weekday">Fri</div>
+      <div class="weekday">Sat</div>
+    </div>
+    
+    <div class="calendar-days" id="calendarGrid"></div>
+    
+    <div id="status"></div>
+    
+    <div class="footer">
+      <p><strong>Jira Worklog Viewer</strong></p>
+      <p class="developer">Created by Mokshak Ketan Dagli</p>
+      <p><a href="mailto:mokshak.dagli@syncron.com">mokshak.dagli@syncron.com</a></p>
+    </div>
+  </div>
+  
+  <div class="right-panel" id="rightPanel">
+    <div id="logsContainer">
+      <div class="logs-header">Worklogs for <span id="selectedDateDisplay"></span></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Ticket</th>
+            <th style="text-align: right;">Hours</th>
+          </tr>
+        </thead>
+        <tbody id="logsBody"></tbody>
+      </table>
+      <div class="total-row">Total: <span id="totalHours">0.00</span>h</div>
+      <button id="copyBtn">Copy Ticket Numbers</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
