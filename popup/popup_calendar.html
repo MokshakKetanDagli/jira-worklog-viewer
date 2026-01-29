@@ -58,6 +58,7 @@
       display: flex;
       flex-direction: column;
       margin-bottom: 10px;
+      position: relative;
     }
 
     .calendar-header {
@@ -109,25 +110,33 @@
       box-shadow: none;
     }
 
-    #toggleView {
-      width: 100%;
-      margin-top: 8px;
-      margin-bottom: 10px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      padding: 10px 16px;
+    .month-toggle-btn {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: translate(-50%, -50%);
+      width: 26px;
+      height: 26px;
       border-radius: 8px;
-      font-size: 12px;
-      font-weight: 800;
-      cursor: pointer;
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+      z-index: 12;
+      transition: left 0.34s cubic-bezier(0.22, 1, 0.36, 1), top 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease;
+      will-change: left, top, transform;
     }
 
-    #toggleView:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    .month-toggle-btn:hover {
+      transform: translate(-50%, -50%) scale(1.06);
+    }
+
+    .month-toggle-btn:active {
+      transform: translate(-50%, -50%) scale(1.02);
+    }
+
+    .month-toggle-btn.hidden {
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
     }
 
     .calendar-weekdays {
@@ -231,6 +240,7 @@
       grid-template-columns: repeat(7, 1fr);
       gap: 8px;
       margin-bottom: 14px;
+      position: relative;
     }
 
     .date-bubble {
@@ -459,8 +469,6 @@
         <h3 id="monthLabel">January 2026</h3>
         <button class="calendar-nav" id="nextMonth" title="Next month">></button>
       </div>
-
-      <button id="toggleView" title="Toggle between week and full month view">Full Month</button>
 
       <div class="calendar-weekdays">
         <div class="weekday">Sun</div>

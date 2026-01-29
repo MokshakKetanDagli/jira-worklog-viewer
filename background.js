@@ -14,6 +14,12 @@ const MAX_BG_CONCURRENCY = 2;
 let bgActive = 0;
 const bgQueue = [];
 
+let CURRENT_USER_ACCOUNT_ID = null;
+
+// Per-popup connection state for cancellation.
+// When the popup closes, the port disconnects and we stop scheduling further month work.
+const PORT_STATE = new Map(); // port -> { disconnected:boolean, monthSessionId:number, monthSessionKey:string|null }
+
 function enqueueBgTask(task) {
   bgQueue.push(task);
   drainBgQueue();
@@ -32,6 +38,75 @@ function drainBgQueue() {
       });
   }
 }
+
+function makePortShouldCancel(port, req) {
+  return () => {
+    const st = PORT_STATE.get(port);
+    if (!st) return true;
+    if (st.disconnected) return true;
+
+    // Only month-prefetch requests are cancellable by session.
+    if (req && req.kind === 'month') {
+      const sid = Number(req.monthSessionId || 0);
+      if (sid && sid !== st.monthSessionId) return true;
+      const key = req.monthSessionKey || null;
+      if (key && st.monthSessionKey && key !== st.monthSessionKey) return true;
+    }
+
+    return false;
+  };
+}
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (!port) return;
+  PORT_STATE.set(port, { disconnected: false, monthSessionId: 0, monthSessionKey: null });
+
+  port.onDisconnect.addListener(() => {
+    const st = PORT_STATE.get(port);
+    if (st) st.disconnected = true;
+    PORT_STATE.delete(port);
+  });
+
+  port.onMessage.addListener((msg) => {
+    const requestId = msg && msg.requestId ? msg.requestId : null;
+    const req = msg && msg.payload ? msg.payload : null;
+    if (!req) return;
+
+    // Control message: bump/cancel month session.
+    if (req.action === 'setMonthSession') {
+      const st = PORT_STATE.get(port);
+      if (st) {
+        st.monthSessionId = Number(req.monthSessionId || 0);
+        st.monthSessionKey = req.monthSessionKey || null;
+      }
+      return;
+    }
+
+    if (req.action === 'syncLogs') {
+      const shouldCancel = makePortShouldCancel(port, req);
+      enqueueBgTask(async () => {
+        if (shouldCancel()) return;
+        try {
+          console.log('[BG] (port) Fetching logs for date:', req.date, req.kind || '');
+          const logs = await getWorklogs(req.date, shouldCancel);
+          if (shouldCancel()) return;
+          const total = logs.reduce((s, l) => s + l.hours, 0).toFixed(2);
+          const grouped = {};
+          logs.forEach(l => {
+            grouped[l.key] = (grouped[l.key] || 0) + l.hours;
+          });
+          const list = Object.keys(grouped).map(k => ({ issueKey: k, hours: grouped[k].toFixed(2) }));
+          const response = { success: true, count: list.length, logs: list, totalHours: total };
+          if (requestId) port.postMessage({ requestId, payload: response });
+        } catch (e) {
+          if (shouldCancel()) return;
+          const err = { success: false, error: e.message };
+          if (requestId) port.postMessage({ requestId, payload: err });
+        }
+      });
+    }
+  });
+});
 
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   if (req.action === 'syncLogs') {
@@ -74,10 +149,25 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   }
 });
 
-async function getWorklogs(date) {
+async function getWorklogs(date, shouldCancel) {
   const domain = CONFIG.JIRA_DOMAIN;
   
   console.log('[BG] getWorklogs: Starting');
+  if (shouldCancel && shouldCancel()) return [];
+
+  // Worklog endpoint returns worklogs for ALL users on an issue.
+  // Fetch current user's accountId so we can filter precisely.
+  let currentAccountId = CURRENT_USER_ACCOUNT_ID;
+  if (!currentAccountId) {
+    try {
+      const me = await call(domain, '/rest/api/3/myself');
+      currentAccountId = me && me.accountId ? String(me.accountId) : null;
+      if (currentAccountId) CURRENT_USER_ACCOUNT_ID = currentAccountId;
+    } catch (e) {
+      // If we can't resolve current user, proceed without author filtering (best-effort).
+      currentAccountId = null;
+    }
+  }
   // Search: only issues that have worklogs for this exact date by the current user.
   // This avoids fetching worklogs for hundreds of unrelated issues per date.
   console.log('[BG] Searching for issues with worklogs on date...');
@@ -86,6 +176,7 @@ async function getWorklogs(date) {
     fields: 'key',
     maxResults: 80
   });
+  if (shouldCancel && shouldCancel()) return [];
   console.log('[BG] Got issues:', res.issues?.length || 0);
   
   // Handle case where search returns no issues
@@ -104,6 +195,7 @@ async function getWorklogs(date) {
   // Fetch worklogs for issues with limited concurrency.
   const issues = res.issues || [];
   const allWorklogs = await mapWithConcurrency(issues, 4, async (issue) => {
+    if (shouldCancel && shouldCancel()) return { issue: issue.key, worklogs: [] };
     try {
       const wl = await call(domain, `/rest/api/3/issue/${issue.key}/worklog`);
       return { issue: issue.key, worklogs: wl.worklogs || [] };
@@ -116,8 +208,14 @@ async function getWorklogs(date) {
   
   const logs = [];
   for (const { issue, worklogs } of allWorklogs) {
+    if (shouldCancel && shouldCancel()) return logs;
     for (const w of worklogs) {
       if (!w || !w.started) continue;
+
+      if (currentAccountId) {
+        const authorId = w.author && w.author.accountId ? String(w.author.accountId) : null;
+        if (authorId && authorId !== currentAccountId) continue;
+      }
 
       let wdate;
       try {
