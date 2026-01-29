@@ -6,7 +6,7 @@
   "permissions": ["storage", "cookies"],
   "host_permissions": ["https://syncron.atlassian.net/*"],
   "action": {
-    "default_popup": "popup/popup.html"
+    "default_popup": "popup/popup_calendar.html"
   },
   "background": {
     "service_worker": "background.js"

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      /* Keep the extension popup height consistent across views. */
+      --popup-height: 520px;
+    }
+
+    html, body {
+      height: var(--popup-height);
+    }
+
+    body {
+      width: 700px;
+      height: var(--popup-height);
+      padding: 0;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      overflow: hidden;
+      color: #2d3748;
+    }
+
+    .left-panel {
+      width: 360px;
+      padding: 16px;
+      background: linear-gradient(180deg, #f8fafc 0%, #e7eef9 100%);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      box-shadow: 2px 0 20px rgba(0, 0, 0, 0.1);
+      gap: 8px;
+      position: relative;
+      padding-bottom: 90px; /* reserve space for pinned footer + gap */
+    }
+
+    .right-panel {
+      flex: 1;
+      padding: 16px;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    #calendarContainer {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 10px;
+    }
+
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 10px;
+    }
+
+    .calendar-header h3 {
+      margin: 0;
+      font-size: 18px;
+      color: #2d3748;
+      font-weight: 800;
+      flex: 1;
+      text-align: center;
+      letter-spacing: -0.5px;
+    }
+
+    .calendar-nav {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      font-size: 16px;
+      border: none;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      cursor: pointer;
+      border-radius: 8px;
+      color: white;
+      font-weight: 900;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+
+    .calendar-nav:hover {
+      transform: translateY(-2px) scale(1.06);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.45);
+    }
+
+    .calendar-nav:disabled {
+      opacity: 0.35;
+      cursor: default;
+      transform: none;
+      box-shadow: none;
+    }
+
+    #toggleView {
+      width: 100%;
+      margin-top: 8px;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    #toggleView:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .calendar-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .weekday {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: #667eea;
+      padding: 6px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .week-view {
+      margin-bottom: 14px;
+    }
+
+    .week-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      align-items: center;
+      position: relative;
+    }
+
+    .week-cell {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: visible;
+    }
+
+    .week-placeholder {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 12px;
+      background: rgba(226, 232, 240, 0.55);
+      border: 1px dashed rgba(160, 174, 192, 0.5);
+      opacity: 0.75;
+      transition: opacity 0.18s ease;
+    }
+
+    .week-placeholder.hidden {
+      opacity: 0;
+    }
+
+    .expand-week-btn {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: translate(-50%, -50%);
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+      z-index: 10;
+      transition: left 0.34s cubic-bezier(0.22, 1, 0.36, 1), top 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease;
+      will-change: left, top, transform;
+    }
+
+    /* Override generic .calendar-nav:hover transform (it would drop our translate(-50%,-50%)) */
+    .expand-week-btn:hover {
+      transform: translate(-50%, -50%) scale(1.06);
+    }
+
+    .expand-week-btn:active {
+      transform: translate(-50%, -50%) scale(1.02);
+    }
+
+    @keyframes bubblePop {
+      0% { transform: scale(0.92); opacity: 0; }
+      65% { transform: scale(1.04); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .date-bubble.pop-in {
+      animation: bubblePop 220ms cubic-bezier(0.2, 0.9, 0.2, 1);
+    }
+
+    .expand-week-btn.hidden {
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+    }
+
+    .week-view.expanded .expand-week-btn {
+      opacity: 0.95;
+    }
+
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .date-bubble {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      min-height: 42px;
+      cursor: pointer;
+      border-radius: 12px;
+      border: 2px solid transparent;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 900;
+      overflow: hidden;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      user-select: none;
+    }
+
+    .date-bubble-inner {
+      position: absolute;
+      inset: 0;
+      border-radius: 10px;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+
+    .date-bubble.other-month {
+      opacity: 0.2;
+      cursor: default;
+    }
+
+    .date-bubble.selected {
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15), 0 4px 12px rgba(102, 126, 234, 0.3);
+      transform: scale(1.08);
+    }
+
+    .date-bubble:not(.other-month):hover {
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+    }
+
+    .date-bubble-text {
+      position: relative;
+      z-index: 2;
+      color: #2d3748;
+    }
+
+    .date-bubble.loading {
+      animation: bubblePulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes bubblePulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+    }
+
+    .date-bubble.empty .date-bubble-inner {
+      background: #e2e8f0;
+      opacity: 1;
+    }
+
+    .date-bubble.critical .date-bubble-inner {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+      opacity: var(--fill);
+    }
+
+    .date-bubble.warning .date-bubble-inner {
+      background: linear-gradient(135deg, #ffa94d 0%, #ff9730 100%);
+      opacity: var(--fill);
+    }
+
+    .date-bubble.good .date-bubble-inner {
+      background: linear-gradient(135deg, #51cf66 0%, #37b24d 100%);
+      opacity: var(--fill);
+    }
+
+    .date-bubble.excellent .date-bubble-inner {
+      background: linear-gradient(135deg, #12b886 0%, #0ca678 100%);
+      opacity: 1;
+    }
+
+    .date-bubble.critical .date-bubble-text,
+    .date-bubble.warning .date-bubble-text,
+    .date-bubble.good .date-bubble-text,
+    .date-bubble.excellent .date-bubble-text {
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    #logsContainer {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      overflow: hidden;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .logs-table-wrap {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0; /* allow scroll area to shrink inside flex */
+    }
+
+    .logs-scroll {
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+      border-radius: 0 0 10px 10px;
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      border-top: none;
+      background: white;
+    }
+
+    .logs-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: white;
+      table-layout: fixed;
+    }
+
+    .logs-table-header {
+      border-radius: 10px 10px 0 0;
+      overflow: hidden;
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      border-bottom: none;
+    }
+
+    .logs-table-body {
+      border-radius: 0;
+    }
+
+    .logs-header {
+      font-weight: 900;
+      color: #2d3748;
+      margin-bottom: 10px;
+    }
+
+    table {
+      width: 100%;
+    }
+
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+    }
+
+    th {
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      font-size: 11px;
+      color: #4a5568;
+      background: #f7fafc;
+      font-weight: 900;
+    }
+
+    .total-row {
+      margin-top: 10px;
+      font-weight: 900;
+      text-align: right;
+      color: #2d3748;
+    }
+
+    #copyBtn {
+      margin-top: 10px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(102, 126, 234, 0.22);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    #copyBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 22px rgba(102, 126, 234, 0.32);
+    }
+
+    #status {
+      margin-top: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #4a5568;
+      min-height: 16px;
+    }
+
+    .footer {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 10px;
+      margin-top: 0;
+      font-size: 11px;
+      color: #4a5568;
+      text-align: center;
+      opacity: 0.85;
+    }
+
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="left-panel">
+    <div id="calendarContainer">
+      <div class="calendar-header">
+        <button class="calendar-nav" id="prevMonth" title="Previous month"><</button>
+        <h3 id="monthLabel">January 2026</h3>
+        <button class="calendar-nav" id="nextMonth" title="Next month">></button>
+      </div>
+
+      <button id="toggleView" title="Toggle between week and full month view">Full Month</button>
+
+      <div class="calendar-weekdays">
+        <div class="weekday">Sun</div>
+        <div class="weekday">Mon</div>
+        <div class="weekday">Tue</div>
+        <div class="weekday">Wed</div>
+        <div class="weekday">Thu</div>
+        <div class="weekday">Fri</div>
+        <div class="weekday">Sat</div>
+      </div>
+
+      <div class="week-view" id="weekView">
+        <div class="week-grid" id="weekGrid"></div>
+      </div>
+
+      <div class="calendar-days" id="calendarGrid" style="display:none;"></div>
+    </div>
+
+    <div class="footer">
+      <p><strong>Jira Worklog Viewer</strong></p>
+      <p class="developer">Created by Mokshak Ketan Dagli</p>
+      <p><a href="mailto:mokshak.dagli@syncron.com">mokshak.dagli@syncron.com</a></p>
+    </div>
+  </div>
+
+  <div class="right-panel" id="rightPanel">
+    <div id="logsContainer">
+      <div class="logs-header">Worklogs for <span id="selectedDateDisplay"></span></div>
+
+      <div class="logs-table-wrap">
+        <table class="logs-table logs-table-header">
+          <colgroup>
+            <col style="width: 70%;" />
+            <col style="width: 30%;" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Ticket</th>
+              <th style="text-align: right;">Hours</th>
+            </tr>
+          </thead>
+        </table>
+
+        <div class="logs-scroll" id="logsScroll">
+          <table class="logs-table logs-table-body">
+            <colgroup>
+              <col style="width: 70%;" />
+              <col style="width: 30%;" />
+            </colgroup>
+            <tbody id="logsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="total-row">Total: <span id="totalHours">0.00</span>h</div>
+      <button id="copyBtn">Copy Ticket Numbers</button>
+      <div id="status"></div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
