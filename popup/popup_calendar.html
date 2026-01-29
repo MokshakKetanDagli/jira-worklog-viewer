@@ -406,6 +406,31 @@
       font-weight: 900;
     }
 
+    .logs-table th:first-child,
+    .logs-table td:first-child {
+      text-align: left;
+    }
+
+    .logs-table th:last-child,
+    .logs-table td:last-child {
+      text-align: right;
+    }
+
+    .issue-link {
+      color: #4c6fff;
+      text-decoration: none;
+      font-weight: 800;
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .issue-link:hover {
+      text-decoration: underline;
+    }
+
     .total-row {
       margin-top: 10px;
       font-weight: 900;
@@ -529,6 +554,7 @@
     </div>
   </div>
 
+  <script src="../config.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

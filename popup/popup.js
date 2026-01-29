@@ -937,8 +937,15 @@ function renderLogsFromResponse(dateStr, response) {
   }
 
   response.logs.forEach(log => {
+    const domain = (typeof CONFIG !== 'undefined' && CONFIG && CONFIG.JIRA_DOMAIN) ? CONFIG.JIRA_DOMAIN : null;
+    const issueKey = log.issueKey;
+    const issueUrl = domain ? `https://${domain}/browse/${encodeURIComponent(issueKey)}` : null;
+
     const row = document.createElement('tr');
-    row.innerHTML = `<td>${log.issueKey}</td><td style="text-align: right;">${log.hours}h</td>`;
+    const issueCell = issueUrl
+      ? `<a class="issue-link" href="${issueUrl}" target="_blank" rel="noopener noreferrer">${issueKey}</a>`
+      : `${issueKey}`;
+    row.innerHTML = `<td>${issueCell}</td><td>${log.hours}h</td>`;
     body.appendChild(row);
   });
 
